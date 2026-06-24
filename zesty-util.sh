@@ -9,7 +9,7 @@
 function el_version() {
     local VERSION_ID
     eval $(grep ^VERSION_ID= /etc/os-release)
-    echo "$VERSION_ID"
+    echo "${VERSION_ID%%.*}"
 }
 
 
@@ -273,8 +273,20 @@ function build_rpm() {
     sed -i -e "s/^\(Release:\s*\).*$/\\1${release}%{?dist}/" "${topdir}/SPECS/${specfile}"
 
     # install rpmbuild and development deps
-    yum install -y rpm-build '@development tools'
-    yum-builddep -y "${topdir}/SPECS/${package%%-*}.spec"
+    dnf install -y rpm-build 'dnf-command(builddep)' '@development tools'
+    # enable crb for -devel packages
+    dnf config-manager --set-enabled crb
+    # FIXME: sledgehammer, somehow the db is broken when running dnf builddep
+    # RPM: error: db5 error(-30969) from dbenv->open: BDB0091 DB_VERSION_MISMATCH: Database environment version mismatch"
+    # RPM: error: cannot open Packages index using db5 -  (-30969)
+    # RPM: error: cannot open Packages database in /var/lib/rpm
+    # The downloaded packages were saved in cache until the next successful transaction.
+    # You can remove cached packages by executing 'dnf clean packages'.
+    # Error: Could not run transaction.
+    rm -f /var/lib/rpm/__db*
+    # FIXME: this caused a problem with 21.08.8-2 but I don't know if there was some reason we weren't using $specfile
+    #dnf builddep -y "${topdir}/SPECS/${package%-*}.spec"
+    dnf builddep -y "${topdir}/SPECS/${specfile}"
 
     # build
     if [ "$RPM_DIST" != "$_RPM_DIST_SYSTEM" ]; then

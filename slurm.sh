@@ -11,7 +11,7 @@ set -eo pipefail
 $DEVMODE && set -x
 
 # default on centos is .el7.centos
-RPM_DIST=.el7
+RPM_DIST=.el9
 
 # RPM Build numbers
 declare -A RPM_BUILDS
@@ -87,6 +87,7 @@ function set_munge_facts() {
 
 
 function check_munge() {
+    log_entry "$@"
     install_jq
     set_munge_facts
     log info "munge latest stable: ${MUNGE_VERSION}"
@@ -94,14 +95,19 @@ function check_munge() {
     check_repo_package "$package" && { log info "$package already staged or deployed in ${REPO_NAME}/${REPO_VERSION}"; return; }
     # build new version of munge if needed
     stage_rpm "$MUNGE_TARBALL"
+    log_exit
 }
 
 
 function slurm_build_setup() {
+    log_entry "$@"
     local package=$(tarball_name_version "$MUNGE_TARBALL")
     # FIXME: switch to yum_install_package and remove all the dependency tracking complexity
     install_rpm "$package"
-    yum install -y mariadb-devel    # not listed as a slurm build dep
+    dnf install -y 'dnf-command(config-manager)'
+    dnf config-manager --set-enabled crb 	# for maraidb-devel
+    dnf install -y mariadb-devel    		# not listed as a slurm build dep
+    log_exit
 }
 
 
@@ -118,6 +124,8 @@ function check_slurm() {
         REPO_VERSION="${_major}.${_minor}"
         SRC_URLS["$package"]="${SLURM_URL}/${tarball}"
 
+        log info "checking slurm $package"
+
         # ensure munge is up to date
         check_munge
 
@@ -133,12 +141,19 @@ function check_slurm() {
         deploy_repo
         deploy_repo_file
     done
+    log_exit
+}
+
+
+function check_deps() {
+    log_call dnf install -y findutils xz pkgconfig bzip2
 }
 
 
 function main() {
     log_entry
     create_build_user
+    check_deps
     cd ${BUILD_ROOT}
 
     # build all current versions of slurm
