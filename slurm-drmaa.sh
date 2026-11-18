@@ -89,6 +89,8 @@ function check_slurm_drmaa() {
     local version
     for version in $(current_slurm_repo_versions); do
         REPO_VERSION="${version}"
+        # slurm-drmaa is built for each Slurm series, so include the series in the release (e.g. 1.1.6-25.05.1)
+        RPM_RELEASE_PREFIX="${version}"
 
         # ensure slurm-drmaa is up to date
         check_slurm_drmaa_for_slurm_version "$version"

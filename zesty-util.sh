@@ -188,14 +188,16 @@ function rpm_version_release() {
     # globals:
     #   $RPM_BUILDS: optional hash with keys ${package} and int values of the *RPM* build id (for when you need to
     #                rebuild RPMs but the upstream version has not changed)
+    #   $RPM_RELEASE_PREFIX: optional prefix for the RPM release, e.g. the version of a dependency that the package
+    #                        must be rebuilt for
     # outputs:
-    #   ${major}.${minor}.${patch} ${build}[.${release}]
+    #   ${major}.${minor}.${patch} [${prefix}.]${build}[.${release}]
     local package="$1"
     local _major _minor _patch _release _version _build
     read _major _minor _patch < <(package_version "$package" | awk -F. -v OFS=' ' '{print $1, $2, $3}')
     read _patch _release < <(echo "$_patch" | awk -F- -v OFS=' ' '{print $1, $2}')
     _version="${_major}.${_minor}.${_patch}"
-    _build="${RPM_BUILDS[$package]:-1}"
+    _build="${RPM_RELEASE_PREFIX:+${RPM_RELEASE_PREFIX}.}${RPM_BUILDS[$package]:-1}"
     [ -n "$_release" ] && echo "${_version} ${_build}.${_release}" || echo "${_version} ${_build}"
 }
 
