@@ -592,8 +592,8 @@ function install_rpm() {
         fi
         rpms+=("${dir}/${rpm}")
     done
-    # install
-    rpm -Uv "${rpms[@]}"
+    # install, with dnf so that the rpms' dependencies from EL are installed too
+    dnf install -y "${rpms[@]}"
     log_exit
 }
 
