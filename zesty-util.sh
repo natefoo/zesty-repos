@@ -231,6 +231,23 @@ function yum_dir() {
 }
 
 
+function rpmbuild_topdir() {
+    # rpmbuild directory for a package, separate for each RPM release so that builds for different values of
+    # $RPM_RELEASE_PREFIX (e.g. different Slurm series) do not find or stage each other's RPMs
+    #
+    # params:
+    #   $1: "package" aka ${name}-${version}
+    # globals:
+    #   $RPMBUILD_ROOT: rpmbuild root directory, default is rpmbuild in the current directory
+    # outputs:
+    #   path to the rpmbuild directory
+    local package="$1"
+    local version release
+    read version release < <(rpm_version_release "$package")
+    echo "${RPMBUILD_ROOT:-$(pwd)/rpmbuild}/${package}-${release}"
+}
+
+
 function check_repo_package() {
     # check per-package yum directory (both repo and staging paths) for the given package (rpm)
     #
@@ -259,7 +276,7 @@ function build_rpm() {
     local tarball="$1"
     local package=$(tarball_name_version "$tarball")
     local specfile="$(package_name "$package").spec"
-    local topdir="${RPMBUILD_ROOT:=$(pwd)/rpmbuild}/${package}"
+    local topdir="$(rpmbuild_topdir "$package")"
     local version release
     read version release < <(rpm_version_release "$package")
 
@@ -310,7 +327,7 @@ function stage_rpm() {
     log_entry "$@"
     local tarball="$1"
     local package=$(tarball_name_version "$tarball")
-    local topdir="${RPMBUILD_ROOT:=$(pwd)/rpmbuild}/${package}"
+    local topdir="$(rpmbuild_topdir "$package")"
     local staging="$(yum_dir)/_staging"
 
     # skip if already staged
