@@ -10,9 +10,6 @@ set -eo pipefail
 
 $DEVMODE && set -x
 
-# default on centos is .el7.centos
-RPM_DIST=.el9
-
 # RPM Build numbers
 declare -A RPM_BUILDS
 # default is 1, to force a new RPM build, increment like so (e.g.):
@@ -23,7 +20,7 @@ BUILD_ROOT=/build
 declare -A RPM_DEPS
 declare -A SRC_URLS
 
-# set $JQ to avoid downloading JQ every time
+# set $JQ to use a jq other than the one installed from EL
 
 MUNGE_RELEASE_URL='https://api.github.com/repos/dun/munge/releases/latest'
 MUNGE_VERSION=

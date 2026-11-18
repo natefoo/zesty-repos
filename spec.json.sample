@@ -1,0 +1,33 @@
+{
+  "brand": "lx",
+  "kernel_version": "6.1.173",
+  "image_uuid": "6ee00407-639c-4c47-8338-84e293b23eb1",
+  "alias": "zesty-repos",
+  "hostname": "zesty-repos",
+  "max_physical_memory": 1024,
+  "quota": 16,
+  "maintain_resolvers": true,
+  "resolvers": [
+    "192.0.2.53"
+  ],
+  "nics": [
+    {
+      "nic_tag": "external",
+      "ip": "192.0.2.10",
+      "netmask": "255.255.255.0",
+      "gateway": "192.0.2.1"
+    }
+  ],
+  "filesystems": [
+    {
+      "source": "/zones/<repo-zone-uuid>/root/path/to/yum",
+      "target": "/yum",
+      "type": "lofs"
+    },
+    {
+      "source": "/path/to/zesty-repos",
+      "target": "/zesty-repos",
+      "type": "lofs"
+    }
+  ]
+}

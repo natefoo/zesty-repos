@@ -14,10 +14,10 @@ function el_version() {
 
 
 _RPM_DIST_SYSTEM="$(rpm --eval %{?dist})"
-: "${RPM_DIST:=$_RPM_DIST_SYSTEM}"                              # e.g. .el7.centos
+: "${RPM_DIST:=$_RPM_DIST_SYSTEM}"                              # e.g. .el9
 : "${RPM_ARCH:=$(rpm --eval %{_arch})}"                         # e.g. x86_64
 : "${RPM_SUFFIX:=${RPM_DIST}.${RPM_ARCH}.rpm}"
-: "${EL_VERSION:=$(el_version)}"                                # e.g. 7
+: "${EL_VERSION:=$(el_version)}"                                # e.g. 9
 
 : ${CREATE_BUILD_USER:=false}
 : ${DEBUG:=false}
@@ -469,8 +469,8 @@ function deploy_repo() {
         deploy_rpm "$rpm" "$dir"
     done
     # generate yum metadata
-    yum install -y createrepo
-    runas createrepo --verbose --excludes '_*' "$dir"
+    dnf install -y createrepo_c
+    runas createrepo_c --verbose --excludes '_*' "$dir"
     # deploy to GPEL if desired
     [ -z "$1" ] && deploy_repo_to_gpel "${staged[@]}"
     log_exit
@@ -478,7 +478,7 @@ function deploy_repo() {
 
 
 function yum_install_package() {
-    # install rpm(s), e.g. as a build dependency, using yum
+    # install rpm(s), e.g. as a build dependency, using dnf
     #
     # requires:
     #   rpm(s) to exist in per-package repo (staging is NOT supported), updated repodata
@@ -493,7 +493,7 @@ function yum_install_package() {
     local yum="$(yum_dir)"
 
     # return if already installed
-    yum list installed "$name" >/dev/null 2>&1 && return
+    rpm -q "$name" >/dev/null && return
 
     local repo_file="/etc/yum.repos.d/${REPO_NAME}-${REPO_VERSION}.repo"
     if [ ! -f "$repo_file" ]; then
@@ -506,13 +506,13 @@ gpgcheck=0
 EOF
     fi
 
-    yum install -y --enablerepo "${REPO_NAME}-${REPO_VERSION}" "$name"
+    dnf install -y --enablerepo "${REPO_NAME}-${REPO_VERSION}" "$name"
     log_exit
 }
 
 
 function yum_uninstall_package() {
-    # uninstall rpm(s) using yum
+    # uninstall rpm(s) using dnf
     #
     # allows for multiple builds in one session
     #
@@ -526,10 +526,10 @@ function yum_uninstall_package() {
     local name="$(package_name "$package")"
 
     # return if already uninstalled
-    ! yum list installed "$name" >/dev/null 2>&1 && return
+    ! rpm -q "$name" >/dev/null && return
 
-    yum erase -y "$name"
-    yum autoremove -y
+    dnf remove -y "$name"
+    dnf autoremove -y
     log_exit
 }
 
@@ -612,20 +612,19 @@ function uninstall_rpm() {
 
 
 function install_jq() {
-    # fetch a copy of jq
+    # install jq
     #
     # useful for parsing github api output
     #
     # globals:
-    #   $JQ: path to JQ if already installed (skips fetching)
+    #   $JQ: path to jq if already installed (skips installing)
     # sets:
-    #   $JQ: path to JQ if unset
+    #   $JQ: path to jq if unset
     log_entry
-    if [ ! -f 'jq' -a -z "$JQ" ]; then
-        curl --location --output jq "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64"
-        chmod +x jq
+    if [ -z "$JQ" ]; then
+        command -v jq >/dev/null || dnf install -y jq
+        JQ="jq"
     fi
-    [ -z "$JQ" ] && JQ="./jq"
     log_exit
 }
 

@@ -10,9 +10,6 @@ set -eo pipefail
 
 $DEVMODE && set -x
 
-# default on centos is .el7.centos
-RPM_DIST=.el9
-
 # RPM Build numbers
 declare -A RPM_BUILDS
 # default is 1, to force a new RPM build, increment like so (e.g.):
@@ -23,7 +20,7 @@ BUILD_ROOT=/build
 declare -A RPM_DEPS
 declare -A SRC_URLS
 
-# set $JQ to avoid downloading JQ every time
+# set $JQ to use a jq other than the one installed from EL
 
 SLURM_DRMAA_RELEASE_URL='https://api.github.com/repos/natefoo/slurm-drmaa/releases/latest'
 SLURM_DRMAA_VERSION=
@@ -52,10 +49,8 @@ function current_slurm_repo_versions() {
     # TODO: at some point we will need a way to limit the minimum Slurm version that Slurm DRMAA should be built for, or
     # maybe just move older slurm versions to an archive.
     for _version in "${YUM_ROOT}/package/${REPO_NAME}/"*.*/${EL_VERSION}; do
-	echo "\$_version is: $_version" >&2
-	if [ "$_version" = "${YUM_ROOT}/package/${REPO_NAME}/*.*/${EL_VERSION}" ]; then break; fi
-	
-        _version=$(basename $(dirname $_version))
+        [ "$_version" == "${YUM_ROOT}/package/${REPO_NAME}/*.*/${EL_VERSION}" ] && break   # no repos for this EL
+        _version=$(basename "$(dirname "$_version")")
         read _major _minor < <(echo "$_version" | awk -F. -v OFS=' ' '{print $1, $2}')
         isint _major && isint _minor || continue
         echo "${_major}.${_minor}"
@@ -70,15 +65,6 @@ function set_slurm_drmaa_facts() {
         SLURM_DRMAA_TARBALL="slurm-drmaa-${SLURM_DRMAA_VERSION}.tar.gz"
         SRC_URLS["slurm-drmaa-${SLURM_DRMAA_VERSION}"]="https://github.com/natefoo/slurm-drmaa/releases/download/${SLURM_DRMAA_VERSION}/${SLURM_DRMAA_TARBALL}"
     fi
-    #case "$REPO_VERSION" in
-    #    17.02)
-    #        SLURM_DEPS=("slurm-devel-${_slurm_version}" "slurm-plugins-${_slurm_version}" "munge-${MUNGE_VERSION}" "munge-libs-${MUNGE_VERSION}")
-    #        ;;
-    #    *)
-    #        SLURM_DEPS=("slurm-devel-${_slurm_version}" "munge-${MUNGE_VERSION}" "munge-libs-${MUNGE_VERSION}")
-    #        ;;
-    #esac
-    #RPM_DEPS["slurm-${_slurm_version}"]='SLURM_DEPS'
 }
 
 
@@ -89,7 +75,6 @@ function check_slurm_drmaa_for_slurm_version() {
     log info "slurm-drmaa latest stable: ${SLURM_DRMAA_VERSION}"
     local package="$(tarball_name_version "$SLURM_DRMAA_TARBALL")"
     check_repo_package "$package" && { log info "$package already staged or deployed in ${REPO_NAME}/${REPO_VERSION}"; return; }
-    #yum install -y mariadb-libs
     yum_install_package "slurm-${_slurm_version}"
     yum_install_package "slurm-devel-${_slurm_version}"
     stage_rpm "slurm-drmaa-${SLURM_DRMAA_VERSION}.tar.gz"
@@ -104,9 +89,6 @@ function check_slurm_drmaa() {
     local version
     for version in $(current_slurm_repo_versions); do
         REPO_VERSION="${version}"
-
-        # to avoid conflicts attempting to install munge as a slurm-drmaa dep (rpm fails if it's already installed)
-        #uninstall_rpm "munge-${MUNGE_VERSION}"
 
         # ensure slurm-drmaa is up to date
         check_slurm_drmaa_for_slurm_version "$version"
